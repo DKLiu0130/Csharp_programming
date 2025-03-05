@@ -16,6 +16,7 @@ namespace HW2_Integration_of_four_tasks
             Console.WriteLine("Beginning of task 1: Input a number!");
             int numberForTask1 = int.Parse(Console.ReadLine());
             program.PerformPrimeFactorization(numberForTask1);
+            program.PrintTask1Result(); // Task 1 output function
 
             // Task 2 - Array Operations
             Console.WriteLine("Beginning of task 2: Input the number of array elements.");
@@ -27,10 +28,12 @@ namespace HW2_Integration_of_four_tasks
                 arrayForTask2[i] = double.Parse(Console.ReadLine());
             }
             program.PerformArrayOperations(arrayForTask2);
+            program.PrintTask2Result(); // Task 2 output function
 
             // Task 3 - Prime Numbers
             Console.WriteLine("Beginning of task 3: I will output prime numbers from 2 to 100.");
             program.PrintPrimeNumbersUpTo100();
+            program.PrintTask3Result(); // Task 3 output function
 
             // Task 4 - Matrix Check
             Console.WriteLine("Beginning of task 4: Input m, n that indicates m*n matrix (use space to separate!).");
@@ -51,6 +54,7 @@ namespace HW2_Integration_of_four_tasks
                 }
             }
             program.CheckMatrixForMagicSquare(matrixForTask4, m, n);
+            program.PrintTask4Result(); // Task 4 output function
         }
 
         // Task 1: Prime Factorization
@@ -64,7 +68,7 @@ namespace HW2_Integration_of_four_tasks
             }
             if (count > 0)
             {
-                Console.WriteLine("2");
+                task1Result = "2";
             }
 
             for (int i = 3; i <= Math.Sqrt(number); i += 2)
@@ -77,13 +81,13 @@ namespace HW2_Integration_of_four_tasks
                 }
                 if (count2 > 0)
                 {
-                    Console.WriteLine(i);
+                    task1Result += $", {i}";
                 }
             }
 
             if (number > 2)
             {
-                Console.WriteLine(number);
+                task1Result += $", {number}";
             }
         }
 
@@ -98,7 +102,7 @@ namespace HW2_Integration_of_four_tasks
                 sum += item;
             }
             avg = sum / arr.Length;
-            Console.WriteLine($"Max = {max}, Min = {min}, Sum = {sum}, Avg = {avg}");
+            task2Result = $"Max = {max}, Min = {min}, Sum = {sum}, Avg = {avg}";
         }
 
         // Task 3: Print Prime Numbers from 2 to 100
@@ -122,15 +126,14 @@ namespace HW2_Integration_of_four_tasks
                 }
             }
 
-            Console.WriteLine("Prime numbers between 2 and 100:");
+            task3Result = "Prime numbers between 2 and 100: ";
             for (int i = 2; i <= n; i++)
             {
                 if (isPrime[i])
                 {
-                    Console.Write(i + " ");
+                    task3Result += i + " ";
                 }
             }
-            Console.WriteLine(); // To move to the next line after printing the primes
         }
 
         // Task 4: Check if matrix is a magic square
@@ -138,7 +141,7 @@ namespace HW2_Integration_of_four_tasks
         {
             if (m != n)
             {
-                Console.WriteLine("false!");
+                task4Result = "false!";
                 return;
             }
             int diagonalValue = matrix[0, 0];
@@ -146,11 +149,39 @@ namespace HW2_Integration_of_four_tasks
             {
                 if (matrix[i, i] != diagonalValue)
                 {
-                    Console.WriteLine("false!");
+                    task4Result = "false!";
                     return;
                 }
             }
-            Console.WriteLine("true!");
+            task4Result = "true!";
+        }
+
+        // Task 1 Result Output
+        string task1Result = "";
+        void PrintTask1Result()
+        {
+            Console.WriteLine("Task 1 Output: " + task1Result);
+        }
+
+        // Task 2 Result Output
+        string task2Result = "";
+        void PrintTask2Result()
+        {
+            Console.WriteLine("Task 2 Output: " + task2Result);
+        }
+
+        // Task 3 Result Output
+        string task3Result = "";
+        void PrintTask3Result()
+        {
+            Console.WriteLine("Task 3 Output: " + task3Result);
+        }
+
+        // Task 4 Result Output
+        string task4Result = "";
+        void PrintTask4Result()
+        {
+            Console.WriteLine("Task 4 Output: " + task4Result);
         }
     }
 }
