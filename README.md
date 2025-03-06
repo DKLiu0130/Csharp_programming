@@ -6,7 +6,7 @@
 
 ## 01 Homework Project: 作业项目
 
-- 存放十次课的作业项目，目前更新到lecture6。
+- 存放十次课的作业项目，目前更新到lecture8。
 
 ## 02 WindowApp Project: 窗口项目
 
