@@ -1,172 +1,152 @@
-ï»¿using System;
-using System.Collections.Generic;
-using System.Linq;
+// OrderDbContext.cs
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
-namespace Homework_5
+namespace Homework_8
 {
     public class Order
     {
-        public int OrderId { get; set; }
-        public string CustomerName { get; set; }
-        public List<OrderDetails> OrderDetails { get; set; }
+        [Key]
+        public int Id { get; set; }
 
+        [Required]
+        [StringLength(50)]
+        public string CustomerName { get; set; } = null!;
+
+        public List<OrderDetail> OrderDetails { get; set; } = new();
+
+        [NotMapped]
         public decimal TotalAmount => OrderDetails.Sum(od => od.Amount);
-
-        public Order(int orderId, string customerName)
-        {
-            OrderId = orderId;
-            CustomerName = customerName;
-            OrderDetails = new List<OrderDetails>();
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is Order order && OrderId == order.OrderId;
-        }
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                int hash = 17;
-                hash = hash * 23 + OrderId.GetHashCode();
-                hash = hash * 23 + (CustomerName?.GetHashCode() ?? 0);
-                return hash;
-            }
-        }
-
-        public override string ToString()
-        {
-            return $"è®¢å•å·: {OrderId}, å®¢æˆ·: {CustomerName}, æ€»é‡‘é¢: {TotalAmount:C}";
-        }
     }
-    public class OrderDetails
+
+    public class OrderDetail
     {
-        public string ProductName { get; set; }
+        [Key]
+        public int Id { get; set; }
+
+        [Required]
+        [StringLength(50)]
+        public string ProductName { get; set; } = null!;
+
+        [Required]
+        [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
 
-        public OrderDetails(string productName, decimal amount)
+        public int OrderId { get; set; }
+        public Order Order { get; set; } = null!;
+    }
+
+    public class OrderDbContext : DbContext
+    {
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderDetail> OrderDetails { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            ProductName = productName;
-            Amount = amount;
+            var connectionString = "server=localhost;port=3306;database=Orderdb_new;user=root;password=112233aabb;";
+            optionsBuilder.UseMySql(
+                connectionString,
+                ServerVersion.AutoDetect(connectionString),
+                options => options.EnableRetryOnFailure(3)
+            );
         }
 
-        public override bool Equals(object obj)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            return obj is OrderDetails details && ProductName == details.ProductName && Amount == details.Amount;
-        }
-        public override int GetHashCode()
-        {
-            unchecked
+            modelBuilder.Entity<Order>(entity =>
             {
-                int hash = 17;
-                hash = hash * 23 + (ProductName?.GetHashCode() ?? 0);
-                hash = hash * 23 + Amount.GetHashCode();
-                return hash;
-            }
-        }
-
-        public override string ToString()
-        {
-            return $"{ProductName} - {Amount:C}";
+                entity.HasMany(o => o.OrderDetails)
+                    .WithOne(d => d.Order)
+                    .HasForeignKey(d => d.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+            });
         }
     }
-    public class OrderService
+
+    public class OrderService : IDisposable
     {
-        private List<Order> _orders;
+        private readonly OrderDbContext _context;
 
         public OrderService()
         {
-            _orders = new List<Order>();
+            _context = new OrderDbContext();
+            _context.Database.EnsureCreated();
         }
 
-        // æ·»åŠ è®¢å•
+        public List<Order> GetAllOrders() =>
+            _context.Orders.Include(o => o.OrderDetails).AsNoTracking().ToList();
+
+        public List<Order> GetOrdersByCustomerName(string customerName) =>
+            _context.Orders
+                .Include(o => o.OrderDetails)
+                .Where(o => o.CustomerName.Contains(customerName))
+                .AsNoTracking()
+                .ToList();
+
         public void AddOrder(Order order)
         {
-            if (_orders.Contains(order))
-            {
-                throw new Exception("è®¢å•å·²å­˜åœ¨");
-            }
-            _orders.Add(order);
+            ValidateOrder(order);
+            _context.Orders.Add(order);
+            _context.SaveChanges();
         }
 
-        // åˆ é™¤è®¢å•
-        public void RemoveOrder(int orderId)
+        public bool UpdateOrder(int id, Action<Order> updateAction)
         {
-            var order = _orders.FirstOrDefault(o => o.OrderId == orderId);
-            if (order == null)
-            {
-                throw new Exception("è®¢å•ä¸å­˜åœ¨");
-            }
-            _orders.Remove(order);
+            var order = _context.Orders
+                .Include(o => o.OrderDetails)
+                .FirstOrDefault(o => o.Id == id);
+
+            if (order == null) return false;
+
+            updateAction(order);
+            ValidateOrder(order);
+
+            _context.SaveChanges();
+            return true;
         }
 
-        // ä¿®æ”¹è®¢å•
-        public void UpdateOrder(int orderId, string customerName)
+        public bool DeleteOrder(int id)
         {
-            var order = _orders.FirstOrDefault(o => o.OrderId == orderId);
-            if (order == null)
-            {
-                throw new Exception("è®¢å•ä¸å­˜åœ¨");
-            }
-            order.CustomerName = customerName;
+            var order = _context.Orders.Find(id);
+            if (order == null) return false;
+
+            _context.Orders.Remove(order);
+            _context.SaveChanges();
+            return true;
         }
 
-        // æŸ¥è¯¢è®¢å•
-        public List<Order> QueryOrders(Func<Order, bool> predicate)
+        private void ValidateOrder(Order order)
         {
-            return _orders.Where(predicate).OrderBy(o => o.TotalAmount).ToList();
+            if (string.IsNullOrWhiteSpace(order.CustomerName))
+                throw new ArgumentException("¿Í»§Ãû³Æ²»ÄÜÎª¿Õ");
+
+            if (!order.OrderDetails.Any())
+                throw new ArgumentException("¶©µ¥±ØĞë°üº¬ÖÁÉÙÒ»¸öÃ÷Ï¸");
         }
 
-        // æ’åºè®¢å•ï¼ˆé»˜è®¤æŒ‰è®¢å•å·æ’åºï¼Œä¹Ÿå¯è‡ªå®šä¹‰æ’åºï¼‰
-        public void SortOrders(Func<Order, object> orderBy = null)
-        {
-            _orders = (orderBy == null) ? _orders.OrderBy(o => o.OrderId).ToList() : _orders.OrderBy(orderBy).ToList();
-        }
-
-        public List<Order> GetAllOrders()
-        {
-            return _orders;
-        }
+        public void Dispose() => _context.Dispose();
     }
-    class Program
+
+    internal static class Program
     {
+        /// <summary>
+        /// Ó¦ÓÃ³ÌĞòµÄÖ÷Èë¿Úµã¡£
+        /// </summary>
+        [STAThread]
         static void Main()
         {
-            var orderService = new OrderService();
+            // ³õÊ¼»¯Ó¦ÓÃ³ÌĞòÅäÖÃ
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
 
-            try
-            {
-                var order1 = new Order(1, "å¼ ä¸‰");
-                order1.OrderDetails.Add(new OrderDetails("è‹¹æœ", 50));
-                order1.OrderDetails.Add(new OrderDetails("é¦™è•‰", 30));
+            // ÅäÖÃ¸ßDPIÉèÖÃ£¨½öÏŞ .NET Core 3.1+/ .NET 5+£©
+            //ApplicationConfiguration.Initialize();
 
-                var order2 = new Order(2, "æå››");
-                order2.OrderDetails.Add(new OrderDetails("æ©™å­", 40));
-                order2.OrderDetails.Add(new OrderDetails("è‘¡è„", 60));
-
-                // æ·»åŠ è®¢å•
-                orderService.AddOrder(order1);
-                orderService.AddOrder(order2);
-
-                // æŸ¥è¯¢è®¢å•
-                Console.WriteLine("æŒ‰å®¢æˆ·æŸ¥è¯¢è®¢å•ï¼š");
-                var orders = orderService.QueryOrders(o => o.CustomerName == "å¼ ä¸‰");
-                orders.ForEach(o => Console.WriteLine(o));
-
-                // ä¿®æ”¹è®¢å•
-                orderService.UpdateOrder(1, "ç‹äº”");
-                Console.WriteLine("ä¿®æ”¹åçš„è®¢å•ï¼š");
-                Console.WriteLine(orderService.GetAllOrders()[0]);
-
-                // åˆ é™¤è®¢å•
-                orderService.RemoveOrder(1);
-                Console.WriteLine("åˆ é™¤åçš„è®¢å•åˆ—è¡¨ï¼š");
-                orderService.GetAllOrders().ForEach(o => Console.WriteLine(o));
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"é”™è¯¯: {ex.Message}");
-            }
+            // ´´½¨²¢ÔËĞĞÖ÷´°Ìå
+            Application.Run(new Form1());
         }
     }
+
 }
